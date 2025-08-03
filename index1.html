@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service and Opportunity Explorer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #map { height: 100vh; width: 100%; }
+    .sidebar { width: 350px; height: 100vh; overflow-y: auto; }
+    .marker-icon { width: 20px; height: 20px; }
+    #refresh-btn, #refresh-feedback-btn { transition: transform 0.3s; }
+    #refresh-btn:hover, #refresh-feedback-btn:hover { transform: rotate(360deg); }
+  </style>
+</head>
+<body class="flex flex-row">
+  <div class="sidebar bg-gray-100 p-4">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-bold text-center w-full italic">Service and Opportunity Explorer</h1>
+      <button id="refresh-btn" class="text-gray-600 hover:text-gray-800 bg-gray-200 p-2 rounded" title="Refresh Map">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5m11 7v-5h-5m-4 9l4-4m0 0l-4-4"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold">Filter by Job Category</h2>
+      <div id="category-filters" class="grid grid-cols-1 gap-2"></div>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold">Add Workplace</h2>
+      <form id="add-workplace-form" class="space-y-2">
+        <div>
+          <label class="block text-sm">Category</label>
+          <select id="add-category" class="w-full p-2 border rounded" required>
+            <option value="">Select a Category</option>
+            <option value="Government Institutions">Government Institutions</option>
+            <option value="Private Office">Private Office</option>
+            <option value="Agriculture Sector">Agriculture Sector</option>
+            <option value="Fisheries">Fisheries</option>
+            <option value="Hotel/Restaurant">Hotel/Restaurant</option>
+            <option value="Construction">Construction</option>
+            <option value="Hospital">Hospital</option>
+            <option value="Education Centers">Education Centers</option>
+            <option value="Management & Finance">Management & Finance</option>
+            <option value="ICT & Software">ICT & Software</option>
+            <option value="Transport/Logistics">Transport/Logistics</option>
+            <option value="Cleaning & Maintenance">Cleaning & Maintenance</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm">Industry/Workplace</label>
+          <input type="text" id="add-industry" class="w-full p-2 border rounded" required>
+        </div>
+        <div>
+          <label class="block text-sm">Job Role</label>
+          <input type="text" id="add-job-role" class="w-full p-2 border rounded" required>
+        </div>
+        <div>
+          <label class="block text-sm">Vacancy</label>
+          <select id="add-vacancy" class="w-full p-2 border rounded" required>
+            <option value="Available">Available</option>
+            <option value="Not Available">Not Available</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm">Education Qualification</label>
+          <select id="add-qualification" class="w-full p-2 border rounded" multiple required>
+            <option value="No formal education required">No formal education required</option>
+            <option value="O/L">O/L</option>
+            <option value="A/L">A/L</option>
+            <option value="NVQ Level 2">NVQ Level 2</option>
+            <option value="NVQ Level 3">NVQ Level 3</option>
+            <option value="NVQ Level 4">NVQ Level 4</option>
+            <option value="NVQ Level 5">NVQ Level 5</option>
+            <option value="NVQ Level 6">NVQ Level 6</option>
+            <option value="Diploma">Diploma</option>
+            <option value="Degree">Degree</option>
+            <option value="MBA">MBA</option>
+            <option value="Training Certificate">Training Certificate</option>
+            <option value="License">License</option>
+            <option value="CCNA Certified">CCNA Certified</option>
+            <option value="ISTQB Certified">ISTQB Certified</option>
+            <option value="MCSE Certified">MCSE Certified</option>
+            <option value="CELTA Certification">CELTA Certification</option>
+            <option value="Merchant Navy Certification">Merchant Navy Certification</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm">Contact Number</label>
+          <input type="text" id="add-contact" class="w-full p-2 border rounded" placeholder="e.g., 032 1234567" required>
+        </div>
+        <div>
+          <label class="block text-sm">Location (Add Latitude and Longitude)</label>
+          <input type="text" id="add-latitude" class="w-full p-2 border rounded" placeholder="e.g., 8.0362" required>
+          <input type="text" id="add-longitude" class="w-full p-2 border rounded mt-2" placeholder="e.g., 79.8283" required>
+        </div>
+        <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Workplace</button>
+      </form>
+    </div>
+    <div>
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold flex items-center">
+          Feedback
+          <svg class="w-5 h-5 ml-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5v-2a2 2 0 012-2h10a2 2 0 012 2v2h-4"></path>
+          </svg>
+        </h2>
+        <button id="refresh-feedback-btn" class="text-gray-600 hover:text-gray-800 bg-gray-200 p-2 rounded" title="Clear Feedback Form and Location">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5m11 7v-5h-5m-4 9l4-4m0 0l-4-4"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="feedback-section" class="mt-2">
+        <label class="block text-sm">Job Category</label>
+        <select id="feedback-category" class="w-full p-2 border rounded mb-2">
+          <option value="">Select a Category</option>
+          <option value="Government Institutions">Government Institutions</option>
+          <option value="Private Office">Private Office</option>
+          <option value="Agriculture Sector">Agriculture Sector</option>
+          <option value="Fisheries">Fisheries</option>
+          <option value="Hotel/Restaurant">Hotel/Restaurant</option>
+          <option value="Construction">Construction</option>
+          <option value="Hospital">Hospital</option>
+          <option value="Education Centers">Education Centers</option>
+          <option value="Management & Finance">Management & Finance</option>
+          <option value="ICT & Software">ICT & Software</option>
+          <option value="Transport/Logistics">Transport/Logistics</option>
+          <option value="Cleaning & Maintenance">Cleaning & Maintenance</option>
+        </select>
+        <label class="block text-sm">Select a Location</label>
+        <select id="feedback-location" class="w-full p-2 border rounded mb-2"></select>
+        <div id="comments-list" class="space-y-2"></div>
+        <div id="feedback-form-container" class="mt-2 space-y-2">
+          <textarea id="feedback-comment" class="w-full p-2 border rounded" placeholder="Your Feedback" required></textarea>
+          <button id="feedback-submit-btn" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">Submit Feedback</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="map" class="flex-1"></div>
+
+  <script>
+    // Defining job categories with associated colors
+    const jobCategories = {
+      "Government Institutions": "#1F4E79",
+      "Private Office": "#FF9898",
+      "Agriculture Sector": "#4CAF50",
+      "Fisheries": "#0277BD",
+      "Hotel/Restaurant": "#FF7043",
+      "Construction": "#F9A825",
+      "Hospital": "#009688",
+      "Education Centers": "#64B5F6",
+      "Management & Finance": "#003366",
+      "ICT & Software": "#7E57C2",
+      "Transport/Logistics": "#D84315",
+      "Cleaning & Maintenance": "#4DD0E1"
+    };
+
+    // Initializing the Leaflet map with OpenStreetMap tiles
+    const map = L.map('map').setView([8.0362, 79.8283], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Initializing global variables
+    let markers = [];
+    let feedbackData = JSON.parse(localStorage.getItem('feedbackData')) || {};
+    let workplaceData = JSON.parse(localStorage.getItem('workplaceData')) || [];
+
+    // Creating a custom marker icon
+    function createCustomIcon(color) {
+      return L.divIcon({
+        className: 'marker-icon',
+        html: `<svg width="20" height="20" viewBox="0 0 24 24" fill="${color}"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 20],
+        popupAnchor: [0, -20]
+      });
+    }
+
+    // Validating and processing data
+    function processData(data) {
+      return data.map(row => {
+        const lat = parseFloat(row.latitude);
+        const lng = parseFloat(row.longitude);
+        const contact = row.contact?.trim();
+        if (isNaN(lat) || isNaN(lng) || !contact || !row.category) return null;
+        return {
+          category: row.category?.trim() || "",
+          industry: row.industry?.trim() || "Unknown",
+          jobRole: row.jobRole?.trim() || "Unknown",
+          latitude: lat,
+          longitude: lng,
+          vacancy: row.vacancy?.trim() || "Unknown",
+          qualification: row.qualification?.trim() || "Not specified",
+          contact: contact
+        };
+      }).filter(row => row && jobCategories[row.category]);
+    }
+
+    // Adding markers to the map
+    function addMarkers(data, selectedCategory = null) {
+      markers.forEach(marker => map.removeLayer(marker));
+      markers = [];
+      const filteredData = selectedCategory ? data.filter(row => row.category === selectedCategory) : data;
+      filteredData.forEach(row => {
+        const marker = L.marker([row.latitude, row.longitude], {
+          icon: createCustomIcon(jobCategories[row.category] || '#808080')
+        }).addTo(map);
+        const popupContent = document.createElement('div');
+        popupContent.innerHTML = `
+          <b>${row.jobRole}</b><br>
+          Category: ${row.category}<br>
+          Industry: ${row.industry}<br>
+          Vacancy: ${row.vacancy}<br>
+          Qualification: ${row.qualification}<br>
+          Contact: ${row.contact}<br>
+          <button class="delete-btn bg-red-500 text-white px-2 py-1 mt-2 rounded hover:bg-red-600">Delete</button>
+        `;
+        marker.bindPopup(popupContent);
+        marker.jobData = row;
+        marker.on('popupopen', () => {
+          const deleteBtn = popupContent.querySelector('.delete-btn');
+          deleteBtn.addEventListener('click', () => {
+            const index = workplaceData.findIndex(w => 
+              w.latitude === row.latitude && w.longitude === row.longitude && w.jobRole === row.jobRole
+            );
+            if (index !== -1) {
+              workplaceData.splice(index, 1);
+              localStorage.setItem('workplaceData', JSON.stringify(workplaceData));
+              const locationKey = `${row.latitude}_${row.longitude}_${row.jobRole}`;
+              delete feedbackData[locationKey];
+              localStorage.setItem('feedbackData', JSON.stringify(feedbackData));
+              map.removeLayer(marker);
+              markers = markers.filter(m => m !== marker);
+              updateFeedbackLocations(document.getElementById('feedback-category').value);
+              document.getElementById('feedback-location').value = '';
+              displayFeedback(null);
+              sendDeleteToGoogleSheet(row);
+            }
+          });
+        });
+        marker.on('click', () => {
+          const locationKey = `${row.latitude}_${row.longitude}_${row.jobRole}`;
+          document.getElementById('feedback-location').value = locationKey;
+          document.getElementById('feedback-category').value = row.category;
+          displayFeedback(locationKey);
+        });
+        markers.push(marker);
+      });
+      updateFeedbackLocations(document.getElementById('feedback-category').value);
+    }
+
+    // Updating feedback location dropdown
+    function updateFeedbackLocations(selectedCategory) {
+      const select = document.getElementById('feedback-location');
+      select.innerHTML = '<option value="">Select a Location</option>';
+      const filteredMarkers = selectedCategory 
+        ? markers.filter(marker => marker.jobData.category === selectedCategory) 
+        : markers;
+      filteredMarkers
+        .sort((a, b) => a.jobData.jobRole.localeCompare(b.jobData.jobRole))
+        .forEach(marker => {
+          const option = document.createElement('option');
+          const locationKey = `${marker.jobData.latitude}_${marker.jobData.longitude}_${marker.jobData.jobRole}`;
+          option.value = locationKey;
+          option.textContent = `${marker.jobData.jobRole} - ${marker.jobData.industry} (${marker.jobData.latitude}, ${marker.jobData.longitude})`;
+          select.appendChild(option);
+        });
+    }
+
+    // Displaying feedback for a selected location
+    function displayFeedback(locationKey) {
+      const commentsList = document.getElementById('comments-list');
+      commentsList.innerHTML = '';
+      if (locationKey && feedbackData[locationKey]) {
+        feedbackData[locationKey].forEach(fb => {
+          const div = document.createElement('div');
+          div.className = 'border p-2 rounded';
+          div.innerHTML = `<strong>${fb.date}</strong>:<br>${fb.comment}`;
+          commentsList.appendChild(div);
+        });
+      }
+    }
+
+    // Loading initial data from Google Sheet CSV
+    const loadInitialData = async () => {
+      try {
+        const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0IZ_aEL6N87aPK7cig98uDpzgt_-1IznzPTQ3d_kcj3UKnkq-p8MJhk2AVtdg4lVpGeXOMzPJ6eM4/pub?output=csv');
+        const csv = await response.text();
+        const rows = csv.split('\n').slice(1).map(row => {
+          const [category, industry, jobRole, vacancy, qualification, contact, latitude, longitude] = row.split(',');
+          return { category, industry, jobRole, vacancy, qualification, contact, latitude, longitude };
+        });
+        const processedData = processData(rows);
+        workplaceData = processedData;
+        localStorage.setItem('workplaceData', JSON.stringify(workplaceData));
+        addMarkers(workplaceData);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      }
+    };
+
+    // Adding category filter buttons
+    const filterContainer = document.getElementById('category-filters');
+    Object.keys(jobCategories).forEach(category => {
+      const button = document.createElement('button');
+      button.className = 'w-full p-2 rounded text-white';
+      button.style.backgroundColor = jobCategories[category];
+      button.textContent = category;
+      button.addEventListener('click', () => {
+        addMarkers(workplaceData, category);
+      });
+      filterContainer.appendChild(button);
+    });
+
+    // Handling refresh map button
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+      addMarkers(workplaceData);
+      document.getElementById('feedback-category').value = '';
+      document.getElementById('feedback-location').value = '';
+      displayFeedback(null);
+    });
+
+    // Handling refresh feedback button
+    document.getElementById('refresh-feedback-btn').addEventListener('click', () => {
+      document.getElementById('feedback-category').value = '';
+      document.getElementById('feedback-location').value = '';
+      document.getElementById('feedback-comment').value = '';
+      displayFeedback(null);
+    });
+
+    // Handling add workplace form submission
+    document.getElementById('add-workplace-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const category = document.getElementById('add-category').value;
+      const industry = document.getElementById('add-industry').value.trim();
+      const jobRole = document.getElementById('add-job-role').value.trim();
+      const vacancy = document.getElementById('add-vacancy').value;
+      const qualifications = Array.from(document.getElementById('add-qualification').selectedOptions).map(opt => opt.value).join(', ');
+      const contact = document.getElementById('add-contact').value.trim();
+      const latitude = parseFloat(document.getElementById('add-latitude').value);
+      const longitude = parseFloat(document.getElementById('add-longitude').value);
+
+      if (!category) {
+        alert('Please select a category.');
+        return;
+      }
+      if (!industry || !jobRole || !contact) {
+        alert('Please fill in all required fields.');
+        return;
+      }
+      if (isNaN(latitude) || isNaN(longitude)) {
+        alert('Please enter valid latitude and longitude (e.g., 8.0362, 79.8283).');
+        return;
+      }
+      if (!contact.match(/^\d{3}\s?\d{7}$/)) {
+        alert('Please enter a valid contact number (e.g., 032 1234567 or 0771234567).');
+        return;
+      }
+
+      const newRow = { category, industry, jobRole, latitude, longitude, vacancy, qualification: qualifications, contact };
+      if (!workplaceData.some(w => w.latitude === latitude && w.longitude === longitude && w.jobRole === jobRole)) {
+        workplaceData.push(newRow);
+        localStorage.setItem('workplaceData', JSON.stringify(workplaceData));
+        addMarkers(workplaceData);
+        await sendToGoogleSheet(newRow);
+        alert('Workplace added successfully.');
+      } else {
+        alert('This workplace (same job role and coordinates) already exists.');
+        return;
+      }
+      document.getElementById('add-workplace-form').reset();
+    });
+
+    // Handling feedback submission with auto-save to Google Sheet
+    document.getElementById('feedback-submit-btn').addEventListener('click', async () => {
+      const locationKey = document.getElementById('feedback-location').value;
+      const comment = document.getElementById('feedback-comment').value.trim();
+      if (!locationKey) {
+        alert('Please select a location.');
+        return;
+      }
+      if (!comment) {
+        alert('Please enter feedback.');
+        return;
+      }
+      const date = new Date().toLocaleString('en-US', { timeZone: 'Asia/Colombo' });
+      if (!feedbackData[locationKey]) feedbackData[locationKey] = [];
+      feedbackData[locationKey].push({ comment, date });
+      localStorage.setItem('feedbackData', JSON.stringify(feedbackData));
+      displayFeedback(locationKey);
+      await sendFeedbackToGoogleSheet(locationKey, comment, date);
+      document.getElementById('feedback-comment').value = '';
+      alert('Feedback submitted and saved successfully.');
+    });
+
+    // Handling feedback category change
+    document.getElementById('feedback-category').addEventListener('change', (e) => {
+      const selectedCategory = e.target.value;
+      updateFeedbackLocations(selectedCategory);
+      document.getElementById('feedback-location').value = '';
+      displayFeedback(null);
+    });
+
+    // Handling feedback location change
+    document.getElementById('feedback-location').addEventListener('change', (e) => {
+      displayFeedback(e.target.value);
+    });
+
+    // Send workplace data to Google Sheet
+    async function sendToGoogleSheet(data) {
+      const formData = new URLSearchParams({
+        category: data.category,
+        industry: data.industry,
+        jobRole: data.jobRole,
+        vacancy: data.vacancy,
+        qualification: data.qualification,
+        contact: data.contact,
+        latitude: data.latitude,
+        longitude: data.longitude
+      }).toString();
+      console.log('Sending workplace data:', formData); // Debug log
+      try {
+        const response = await fetch('https://script.google.com/macros/s/AKfycbxToaHqGrK6NwyE8vRsXy2BX2jO5tJ717FGhhmN_pnYO8XEOqJHJN-k85DAivJy5g0/exec', {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData
+        });
+        console.log('Workplace data sent, response:', response); // Debug log (may be undefined with no-cors)
+      } catch (error) {
+        console.error('Error sending workplace data to Google Sheet:', error);
+      }
+    }
+
+    // Send delete request to Google Sheet
+    async function sendDeleteToGoogleSheet(data) {
+      const formData = new URLSearchParams({
+        action: 'delete',
+        latitude: data.latitude,
+        longitude: data.longitude,
+        jobRole: data.jobRole
+      }).toString();
+      console.log('Sending delete request:', formData); // Debug log
+      try {
+        const response = await fetch('https://script.google.com/macros/s/AKfycbxToaHqGrK6NwyE8vRsXy2BX2jO5tJ717FGhhmN_pnYO8XEOqJHJN-k85DAivJy5g0/exec', {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData
+        });
+        console.log('Delete request sent, response:', response); // Debug log (may be undefined with no-cors)
+      } catch (error) {
+        console.error('Error sending delete request to Google Sheet:', error);
+      }
+    }
+
+    // Send feedback data to Google Sheet
+    async function sendFeedbackToGoogleSheet(locationKey, comment, date) {
+      const [latitude, longitude, jobRole] = locationKey.split('_');
+      const formData = new URLSearchParams({
+        latitude: latitude,
+        longitude: longitude,
+        jobRole: jobRole,
+        comment: comment,
+        date: date
+      }).toString();
+      console.log('Sending feedback data:', formData); // Debug log
+      try {
+        const response = await fetch('https://script.google.com/macros/s/AKfycbw9pDvW-n5Sniagv1V9yuWEJ7yq3SrD3a9l_T3EIImejZ3cxcuLyjvoM2bfUb_wifye/exec', {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData
+        });
+        console.log('Feedback data sent, response:', response); // Debug log (may be undefined with no-cors)
+      } catch (error) {
+        console.error('Error sending feedback to Google Sheet:', error);
+      }
+    }
+
+    // Load initial data on page load
+    loadInitialData();
+  </script>
+</body>
+</html>
